@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --hover-color: #2980b9;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            background-color: var(--primary-color);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--hover-color);
+        }
+        
+        .console-output {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            border-radius: 5px;
+        }
+        
+        .server-status {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .status-online {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .status-offline {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <h3 class="mb-4">Server Manager</h3>
+                <div class="mb-4">
+                    <h5>Active Servers</h5>
+                    <div id="serverList" class="list-group">
+                        <!-- Server list will be populated here -->
+                    </div>
+                </div>
+                <button class="btn btn-primary w-100 mb-3" data-bs-toggle="modal" data-bs-target="#createServerModal">
+                    <i class="fas fa-plus"></i> Create New Server
+                </button>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <!-- Server Controls -->
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">Server Controls</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 align-items-center mb-3">
+                            <div class="col-auto">
+                                <select id="selectedServer" class="form-select">
+                                    <option value="">Select a Server</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-success" onclick="controlServer('start')">
+                                    <i class="fas fa-play"></i> Start
+                                </button>
+                                <button class="btn btn-danger" onclick="controlServer('stop')">
+                                    <i class="fas fa-stop"></i> Stop
+                                </button>
+                                <button class="btn btn-warning" onclick="controlServer('restart')">
+                                    <i class="fas fa-redo"></i> Restart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Console -->
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">Server Console</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="console-output" id="consoleOutput"></div>
+                        <div class="input-group mt-3">
+                            <input type="text" id="consoleCommand" class="form-control" placeholder="Enter command...">
+                            <button class="btn btn-primary" onclick="sendCommand()">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Management -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Version Management</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group">
+                                    <input type="text" id="serverVersion" class="form-control" placeholder="Version number">
+                                    <button class="btn btn-primary" onclick="updateVersion()">
+                                        <i class="fas fa-sync"></i> Update Version
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Java Version</h5>
+                            </div>
+                            <div class="card-body">
+                                <select id="javaVersion" class="form-select" onchange="updateJavaVersion()">
+                                    <option value="8">Java 8</option>
+                                    <option value="11">Java 11</option>
+                                    <option value="16">Java 16</option>
+                                    <option value="17">Java 17</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Management -->
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">File Manager</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" id="filePath" class="form-control" placeholder="File path">
+                            </div>
+                            <div class="col-md-3">
+                                <select id="fileAction" class="form-select">
+                                    <option value="edit">Edit</option>
+                                    <option value="delete">Delete</option>
+                                    <option value="zip">Zip</option>
+                                    <option value="unzip">Unzip</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <button class="btn btn-primary" onclick="handleFileAction()">
+                                    <i class="fas fa-file"></i> Execute Action
+                                </button>
+                            </div>
+                        </div>
+                        <div id="fileEditor" class="mt-3" style="display: none;">
+                            <textarea id="fileContent" class="form-control" rows="10"></textarea>
+                            <button class="btn btn-success mt-2" onclick="saveFile()">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Server Modal -->
+    <div class="modal fade" id="createServerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Server</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="serverName" class="form-control" placeholder="Server name">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="createServer()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        
+        // Fetch and populate server list
+        function refreshServerList() {
+            fetch('/servers')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('selectedServer');
+                    const list = document.getElementById('serverList');
+                    select.innerHTML = '<option value="">Select a Server</option>';
+                    list.innerHTML = '';
+                    
+                    data.servers.forEach(server => {
+                        const option = document.createElement('option');
+                        option.value = server;
+                        option.textContent = server;
+                        select.appendChild(option);
+                        
+                        const listItem = document.createElement('a');
+                        listItem.href = '#';
+                        listItem.className = 'list-group-item list-group-item-action';
+                        listItem.textContent = server;
+                        listItem.onclick = () => selectServer(server);
+                        list.appendChild(listItem);
+                    });
+                });
+        }
+
+        // Server control functions
+        function createServer() {
+            const name = document.getElementById('serverName').value;
+            fetch('/server/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name })
+            }).then(() => {
+                refreshServerList();
+                bootstrap.Modal.getInstance(document.getElementById('createServerModal')).hide();
+            });
+        }
+
+        function controlServer(action) {
+            const server = document.getElementById('selectedServer').value;
+            fetch('/server/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: server, action })
+            }).then(response => alert(`Server ${action}ed`));
+        }
+
+        function sendCommand() {
+            const server = document.getElementById('selectedServer').value;
+            const command = document.getElementById('consoleCommand').value;
+            fetch('/server/console', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: server, command })
+            });
+            document.getElementById('consoleCommand').value = '';
+        }
+
+        // File management functions
+        function handleFileAction() {
+            const action = document.getElementById('fileAction').value;
+            const path = document.getElementById('filePath').value;
+            
+            if (action === 'edit') {
+                fetch(`/file/manage?path=${encodeURIComponent(path)}`)
+                    .then(response => response.text())
+                    .then(content => {
+                        document.getElementById('fileContent').value = content;
+                        document.getElementById('fileEditor').style.display = 'block';
+                    });
+            } else {
+                fetch('/file/manage', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action, file_path: path })
+                }).then(response => alert(`File ${action}ed`));
+            }
+        }
+
+        function saveFile() {
+            const path = document.getElementById('filePath').value;
+            const content = document.getElementById('fileContent').value;
+            fetch('/file/manage', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    action: 'edit',
+                    file_path: path,
+                    content 
+                })
+            }).then(() => alert('File saved'));
+        }
+
+        // Initial load
+        refreshServerList();
+        setInterval(refreshServerList, 10000); // Refresh every 10 seconds
+    </script>
+    <!-- Add this JavaScript code -->
+<script>
+    // Proper server control with error handling
+    function controlServer(action) {
+        const server = document.getElementById('selectedServer').value;
+        if (!server) {
+            alert('Please select a server');
+            return;
+        }
+
+        fetch('/server/control', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: server, action })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(`Error: ${data.error}`);
+            } else {
+                alert(data.message);
+                updateConsole();
+            }
+        })
+        .catch(error => alert(`Error: ${error}`));
+    }
+
+    // Real-time console with proper command execution
+    function sendCommand() {
+        const server = document.getElementById('selectedServer').value;
+        const command = document.getElementById('consoleCommand').value;
+        if (!server || !command) return;
+
+        fetch('/server/console', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: server, command })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(`Error: ${data.error}`);
+            }
+            document.getElementById('consoleCommand').value = '';
+        });
+    }
+
+    // Enhanced status checking
+    function updateStatus() {
+        const server = document.getElementById('selectedServer').value;
+        if (!server) return;
+
+        fetch(`/server/status/${server}`)
+            .then(response => response.json())
+            .then(data => {
+                const statusElement = document.getElementById('serverStatus');
+                if (statusElement) {
+                    statusElement.className = `server-status ${data.status === 'running' ? 'status-online' : 'status-offline'}`;
+                    statusElement.textContent = data.status.toUpperCase();
+                }
+            });
+    }
+
+    // Update console and status every second
+    setInterval(() => {
+        updateConsole();
+        updateStatus();
+    }, 1000);
+</script>
+</body>
+</html>
